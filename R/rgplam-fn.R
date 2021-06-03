@@ -294,7 +294,7 @@ plam.cl <- function(y, Z, X, np.point=NULL, nknots=NULL, knots=NULL, degree.spli
 # #' @importFrom splines bs
 # #' @importFrom robustbase glmrob
 #' @export
-gplam.rob <- function(y, Z, X, family, method="MT", np.point=NULL, nknots=NULL, knots=NULL, degree.spline=3, maxit=100){
+gplam.rob <- function(y, Z, X, family, method=NULL, np.point=NULL, nknots=NULL, knots=NULL, degree.spline=3, maxit=100){
   # y continuos response variable (n)
   # Z a discret or cathegorical vector (n) or matrix (n x q) for the linear part.
   # In case it is a cathegorical variable, class of Z should be 'factor'.
@@ -357,30 +357,52 @@ gplam.rob <- function(y, Z, X, family, method="MT", np.point=NULL, nknots=NULL, 
 
   #Robust estimator
   if(fami=="poisson"){
+    if(is.null(method)){
+      cat("MT method applied")
+      method <- "MT"
+    }
     sal  <- glmrob(y ~ Z.aux+Xspline, family=family, method=method)
+    betas <- as.vector(sal$coefficients)
+    beta.hat <- betas[-1]
+    coef.lin <- betas[2:(q+1)]
+    coef.spl <- betas[(q+2):(1+q+nMat*d)]
+    alpha.hat <- betas[1]
+
+    gs.hat <- matrix(0,n,d)
+    correc <- rep(0,d)
+    for(ell in 1:d){
+      aux <- as.vector( Xspline[,(nMat*(ell-1)+1):(nMat*ell)] %*% coef.spl[(nMat*(ell-1)+1):(nMat*ell)] )
+      correc[ell] <- mean(aux)
+      gs.hat[,ell] <- aux - mean(aux)
+    }
+
+    regresion.hat <- sal$fitted.values #alpha.hat + dummies%*%coef.lin + Xspline%*%coef.spl
+
   }
   if(fami=="binomial"){
-    if(!is.null(method)){
-      cat("WBY method applied")
+    cat("WBY method applied")
+
+    sal  <- logregWBY(cbind(Z.aux,Xspline), y, intercept = 1) #logregBY(cbind(Z.aux,Xspline), y, intercept = 1) #glmrob(y ~ Z.aux+Xspline, family=family, method="Mqle") #logregWBY(cbind(Z.aux,Xspline), y, intercept = 1)
+
+    betas <- as.vector(sal$coefficients)
+    beta.hat <- betas[-1]
+    coef.lin <- betas[2:(q+1)]
+    coef.spl <- betas[(q+2):(1+q+nMat*d)]
+    alpha.hat <- betas[1]
+
+    gs.hat <- matrix(0,n,d)
+    correc <- rep(0,d)
+    for(ell in 1:d){
+      aux <- as.vector( Xspline[,(nMat*(ell-1)+1):(nMat*ell)] %*% coef.spl[(nMat*(ell-1)+1):(nMat*ell)] )
+      correc[ell] <- mean(aux)
+      gs.hat[,ell] <- aux - mean(aux)
     }
-    sal  <- logregWBY(cbind(Z.aux,Xspline), y, intercept = 1)
+
+    regresion.hat <- sal$fitted.values #alpha.hat + dummies%*%coef.lin + Xspline%*%coef.spl
+
+
   }
 
-  betas <- as.vector(sal$coefficients)
-  beta.hat <- betas[-1]
-  coef.lin <- betas[2:(q+1)]
-  coef.spl <- betas[(q+2):(1+q+nMat*d)]
-  alpha.hat <- betas[1]
-
-  gs.hat <- matrix(0,n,d)
-  correc <- rep(0,d)
-  for(ell in 1:d){
-    aux <- as.vector( Xspline[,(nMat*(ell-1)+1):(nMat*ell)] %*% coef.spl[(nMat*(ell-1)+1):(nMat*ell)] )
-    correc[ell] <- mean(aux)
-    gs.hat[,ell] <- aux - mean(aux)
-  }
-
-  regresion.hat <- sal$fitted.values #alpha.hat + dummies%*%coef.lin + Xspline%*%coef.spl
 
 
   if(is.null(np.point)){
