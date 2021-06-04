@@ -362,48 +362,34 @@ gplam.rob <- function(y, Z, X, family, method=NULL, np.point=NULL, nknots=NULL, 
       method <- "MT"
     }
     sal  <- glmrob(y ~ Z.aux+Xspline, family=family, method=method)
-    betas <- as.vector(sal$coefficients)
-    beta.hat <- betas[-1]
-    coef.lin <- betas[2:(q+1)]
-    coef.spl <- betas[(q+2):(1+q+nMat*d)]
-    alpha.hat <- betas[1]
-
-    gs.hat <- matrix(0,n,d)
-    correc <- rep(0,d)
-    for(ell in 1:d){
-      aux <- as.vector( Xspline[,(nMat*(ell-1)+1):(nMat*ell)] %*% coef.spl[(nMat*(ell-1)+1):(nMat*ell)] )
-      correc[ell] <- mean(aux)
-      gs.hat[,ell] <- aux - mean(aux)
-    }
-
-    regresion.hat <- sal$fitted.values #alpha.hat + dummies%*%coef.lin + Xspline%*%coef.spl
-
   }
   if(fami=="binomial"){
     cat("WBY method applied")
-
     sal  <- logregWBY(cbind(Z.aux,Xspline), y, intercept = 1) #logregBY(cbind(Z.aux,Xspline), y, intercept = 1) #glmrob(y ~ Z.aux+Xspline, family=family, method="Mqle") #logregWBY(cbind(Z.aux,Xspline), y, intercept = 1)
-
-    betas <- as.vector(sal$coefficients)
-    beta.hat <- betas[-1]
-    coef.lin <- betas[2:(q+1)]
-    coef.spl <- betas[(q+2):(1+q+nMat*d)]
-    alpha.hat <- betas[1]
-
-    gs.hat <- matrix(0,n,d)
-    correc <- rep(0,d)
-    for(ell in 1:d){
-      aux <- as.vector( Xspline[,(nMat*(ell-1)+1):(nMat*ell)] %*% coef.spl[(nMat*(ell-1)+1):(nMat*ell)] )
-      correc[ell] <- mean(aux)
-      gs.hat[,ell] <- aux - mean(aux)
+  }
+  if(fami=="gaussian" | fami=="Gamma"){
+    if(is.null(method)){
+      cat("Mqle method applied")
+      method <- "Mqle"
     }
-
-    regresion.hat <- sal$fitted.values #alpha.hat + dummies%*%coef.lin + Xspline%*%coef.spl
-
-
+    sal  <- glmrob(y ~ Z.aux+Xspline, family=family, method=method)
   }
 
+  betas <- as.vector(sal$coefficients)
+  beta.hat <- betas[-1]
+  coef.lin <- betas[2:(q+1)]
+  coef.spl <- betas[(q+2):(1+q+nMat*d)]
+  alpha.hat <- betas[1]
 
+  gs.hat <- matrix(0,n,d)
+  correc <- rep(0,d)
+  for(ell in 1:d){
+    aux <- as.vector( Xspline[,(nMat*(ell-1)+1):(nMat*ell)] %*% coef.spl[(nMat*(ell-1)+1):(nMat*ell)] )
+    correc[ell] <- mean(aux)
+    gs.hat[,ell] <- aux - mean(aux)
+  }
+
+  regresion.hat <- sal$fitted.values #alpha.hat + dummies%*%coef.lin + Xspline%*%coef.spl
 
   if(is.null(np.point)){
     salida <- list(prediction=regresion.hat, coef.lin=coef.lin, coef.const=alpha.hat+sum(correc), g.matrix=gs.hat, coef.spl=coef.spl, nknots=nknots, knots=knots, y=y, X=X, Z=Z.aux, Xspline=Xspline, nMat=nMat, alpha.clean=alpha.hat, nbasis=nbasis, kj=kj)
