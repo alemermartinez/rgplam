@@ -94,14 +94,38 @@ sal1$coef.lin
 sal1$coef.const
 sal1$g.matrix
 plot(x1,sal1$g.matrix[,1])
-points(x1,function.g1(x1), col=2)
+ord <- order(x1)
+lines(x1[ord],function.g1(x1[ord]), col=2, lwd=2)
 plot(x2,sal1$g.matrix[,2])
-points(x2,function.g2(x2), col=2)
-
+ord <- order(x2)
+lines(x2[ord],function.g2(x2[ord]), col=2, lwd=2)
 
 sal1$prediction[1:5]
 exp(sal1$coef.const + as.vector(sal1$coef.lin%*%t(Z)+rowSums(sal1$g.matrix)))[1:5]
 y[1:5]
+
+### Ahora con selección de ventanas automática
+
+degree.spline <- 3
+method="MT"
+np.point=NULL
+library(robustbase)
+sal1 <- gplam.rob(y, Z, X, family=poisson, method="MT", np.point=NULL, nknots=NULL, knots=NULL, degree.spline=3, maxit=100)
+sal1$nknots
+sal1$coef.lin
+sal1$coef.const
+sal1$g.matrix
+plot(x1,sal1$g.matrix[,1])
+ord <- order(x1)
+lines(x1[ord],function.g1(x1[ord]), col=2, lwd=2)
+plot(x2,sal1$g.matrix[,2])
+ord <- order(x2)
+lines(x2[ord],function.g2(x2[ord]), col=2, lwd=2)
+
+sal1$prediction[1:5]
+exp(sal1$coef.const + as.vector(sal1$coef.lin%*%t(Z)+rowSums(sal1$g.matrix)))[1:5]
+y[1:5]
+
 
 
 #- Binomial -#
@@ -143,6 +167,20 @@ points(x2,function.g2(x2), col=2)
 sal1$prediction[1:5]
 log.dis(sal1$coef.const + as.vector(sal1$coef.lin%*%t(Z)+rowSums(sal1$g.matrix)))[1:5]
 y[1:5]
+
+### Ahora con selección de ventanas
+nknots <- NULL
+degree.spline <- 3
+np.point=NULL
+library(RobStatTM)
+sal1 <- gplam.rob(y, Z, X, family=binomial, np.point=NULL, nknots=NULL, knots=NULL, degree.spline=3, maxit=100)
+sal1$coef.lin
+sal1$coef.const
+sal1$g.matrix
+plot(x1,sal1$g.matrix[,1])
+points(x1,function.g1(x1), col=2)
+plot(x2,sal1$g.matrix[,2])
+points(x2,function.g2(x2), col=2)
 
 #- Gamma -#
 
