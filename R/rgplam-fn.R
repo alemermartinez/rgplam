@@ -12,11 +12,85 @@ tukey.loss <- function(x,k=4.685){
   return(salida)
 }
 
+#' Derivative of Huber's loss function.
+#'
+#' This function evaluates the first derivative of Huber's loss function.
+#'
+#' This function evaluates the first derivative of Huber's loss function.
+#'
+#' @param r a vector of real numbers
+#' @param k a positive tuning constant.
+#'
+#' @return A vector of the same length as \code{x}.
+#'
+#' @author Matias Salibian-Barrera, \email{matias@stat.ubc.ca}, Alejandra Martinez
+#'
+#' @examples
+#' x <- seq(-2, 2, length=10)
+#' psi.huber(r=x, k = 1.5)
+#'
+#' @export
+psi.huber <- function(r, k=1.345)
+  pmin(k, pmax(-k, r))
+
+#Huber's weight function "Psi(r)/r"
+psi.huber.w <- function(r, k=1.345)
+  pmin(1, k/abs(r))
+
+
+#Huber's loss function
+rho.huber <- function(r, k=1.345){
+  if(abs(r)<=k){
+    return(r^2)
+  }else{
+    return(2*k*abs(r)-k^2)
+  }
+}
+
+
+#' Derivative of CH loss function.
+#'
+#' This function evaluates the first derivative of CH loss function proposed by Croux and Haesbroeck (2003).
+#'
+#' This function evaluates the first derivative of CH loss function.
+#'
+#' @param r a vector of real numbers
+#' @param k a positive tuning constant.
+#'
+#' @return A vector of the same length as \code{x}.
+#'
+#' @author Alejandra Martinez, \email{ale_m_martinez@hotmail.com}
+#'
+#' @examples
+#' x <- seq(-2, 2, length=10)
+#' psi.ch(r=x, k = 0.5)
+#'
+#' @export
+psi.ch <- function(r, k=0.5)
+  exp(-sqrt(pmax(r, k)))
+
+#CH loss function
+rho.ch <- function(r, k=0.5){
+  #r <- abs(r)
+  return( pmin(r,k)*exp(-sqrt(pmax(r,k)))*as.numeric(r<=k)+
+        (-2*exp(-sqrt(pmax(r,k)))*(1+sqrt(pmax(r,k)))+exp(-sqrt(pmin(r,k)))*(2*(1+sqrt(pmin(r,k)))+pmin(r,k)))*as.numeric(r>k)  )
+}
+
+#prueba <- function(r,k=0.5){
+#  r <- abs(r)
+#  if(r<=k){
+#    return(r*exp(-sqrt(k)))
+#  }else{
+#    return( -2*exp(-sqrt(r))*(1+sqrt(r))+exp(-sqrt(k))*(2*(1+sqrt(k))+k)   )
+#  }
+#}
+
 #' Tukey Loss Function
 #' @export
 my.norm.2 <- function(x){
   return( sqrt(sum(x^2)) )
 }
+
 
 
 #' Classical knot selection
@@ -96,10 +170,24 @@ select.nknots.cl <- function(y,Z,X,degree.spline=3){
 #' Robust knot selection
 #' @examples
 #' x <- seq(-2, 2, length=10)
-# #' @importFrom splines bs
-# #' @importFrom robustbase glmrob
+#' @importFrom splines bs
+#' @importFrom robustbase glmrob
+#' @importFrom RobStatTM logregWBY
 #' @export
-select.nknots.rob <- function(y, Z, X, family=family, method="MT", degree.spline=3, maxit=100){
+select.nknots.rob.gplam <- function(y, Z, X, family=family, method="MT", degree.spline=3, maxit=100){
+
+  if (is.character(family))
+    family <- get(family, mode = "function", envir = parent.frame())
+  if (is.function(family))
+    family <- family()
+  fami <- family$family
+  if (is.null(fami))
+    stop(gettextf("'%s' is not a valid family (see ?family)",
+                  as.character(call[["family"]])), domain = NA)
+  if (!(fami %in% c("binomial", "poisson", "Gamma", "gaussian"))) {
+    stop(gettextf("Robust GLM fitting not yet implemented for family %s",
+                  fami), domain = NA)
+  }
 
   n <- length(y)
   d <- dim(X)[2]
@@ -143,9 +231,39 @@ select.nknots.rob <- function(y, Z, X, family=family, method="MT", degree.spline
     #dim(Xspline)[2]/4
 
 
+    #Robust estimator
+    if(fami=="poisson"){
+      if(is.null(method)){
+        cat("MT method applied")
+        method <- "MT"
+      }
+      sal.r  <- glmrob(y ~ Z.aux+Xspline, family=family, method=method)
+      perdida <- tukey.los
+      residuos <- sal.r$residuals #alpha.hat + dummies%*%coef.lin + Xspline%*%coef.spl
+    }
+    if(fami=="binomial"){
+      cat("WBY method applied")
 
-    #- Robust estimator -#
-    sal.r  <- glmrob(y ~ Z.aux+Xspline, family=family, method=method)
+      sal.r  <- try( logregWBY(cbind(Z.aux,Xspline), y, intercept = 1))#logregBY(cbind(Z.aux,Xspline), y, intercept = 1) #glmrob(y ~ Z.aux+Xspline, family=family, method="Mqle") #logregWBY(cbind(Z.aux,Xspline), y, intercept = 1)
+      if( class(sal.r) == 'try-error'){
+        RBIC[ (nknots+1): length(grid.nknots)] <- +Inf
+        break
+      }
+      perdida <- rho.ch
+      #stop("No se pueden calcular los residuos para la selección automática de ventanas")
+      residuos <- sal.r$residual.deviances
+    }
+    if(fami=="gaussian" | fami=="Gamma"){
+      if(is.null(method)){
+        cat("Mqle method applied")
+        method <- "Mqle"
+      }
+      sal.r  <- glmrob(y ~ Z.aux+Xspline, family=family, method=method)
+      perdida <- rho.huber
+      residuos <- sal.r$residuals #alpha.hat + dummies%*%coef.lin + Xspline%*%coef.spl
+
+    }
+
 
     betas <- as.vector(sal.r$coefficients)
     beta.hat <- betas[-1]
@@ -159,12 +277,10 @@ select.nknots.rob <- function(y, Z, X, family=family, method="MT", degree.spline
       gs.hat[,ell] <- aux - mean(aux)
     }
 
-    regresion.hat.r <- stats::predict(sal.r) #alpha.hat + dummies%*%coef.lin + Xspline%*%coef.spl
 
     nbasis <- d*(nknots + degree.spline) #d*(nknots + degree.spline + 1)
-    desvio.hat <- sal.r$s
-    tuk <- tukey.loss( (y - regresion.hat.r)/desvio.hat )
-    RBIC[nknots+1] <- log( (desvio.hat^2)*sum(tuk) )+ (log(n)/(2*n))*(nbasis+q+1) #q+1 porque q de la parte lineal y 1 de la constante. O sea, q+1 es la cantidad de lineales.
+    tuk <- perdida( abs(residuos) )
+    RBIC[nknots+1] <- log( sum(tuk) )+ (log(n)/(2*n))*(nbasis+q+1) #q+1 porque q de la parte lineal y 1 de la constante. O sea, q+1 es la cantidad de lineales.
   }
   posicion <- which.min(RBIC)
   nknots <- posicion-1
@@ -331,7 +447,7 @@ gplam.rob <- function(y, Z, X, family, method=NULL, np.point=NULL, nknots=NULL, 
   }
 
   if( is.null(nknots) ){
-    AUX <- select.nknots.rob(y, Z, X, family=family, method=method, degree.spline=degree.spline, maxit=maxit)
+    AUX <- select.nknots.rob.gplam(y, Z, X, family=family, method=method, degree.spline=degree.spline, maxit=maxit)
     nknots <- AUX$nknots
     nbasis <- AUX$nbasis
     kj <- AUX$kj
