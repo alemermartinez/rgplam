@@ -173,19 +173,19 @@ nknots <- NULL
 degree.spline <- 3
 np.point=NULL
 library(RobStatTM)
-sal1 <- gplam.rob(y, Z, X, family=binomial, np.point=NULL, nknots=NULL, knots=NULL, degree.spline=3, maxit=100)
-sal1$coef.lin
-sal1$coef.const
-sal1$g.matrix
-plot(x1,sal1$g.matrix[,1])
+sal2 <- gplam.rob(y, Z, X, family=binomial, np.point=NULL, nknots=NULL, knots=NULL, degree.spline=3, maxit=100)
+sal2$coef.lin
+sal2$coef.const
+sal2$g.matrix
+plot(x1,sal2$g.matrix[,1])
 points(x1,function.g1(x1), col=2)
-plot(x2,sal1$g.matrix[,2])
+plot(x2,sal2$g.matrix[,2])
 points(x2,function.g2(x2), col=2)
 
 #- Gamma -#
 
 set.seed(123)
-n <- 2000
+n <- 3000
 beta <- c(3,3)
 function.g1 <- function(x1) 2*sin(pi*x1)-4/pi
 function.g2 <- function(x2) exp(x2)-(exp(1)-1)
@@ -200,7 +200,6 @@ y <- rep(0,n)
 for(i in 1:n){
   y[i] <- rgamma(1, 1, rate= 2+ as.numeric(beta%*%Z[i,] + function.g1(x1[i])+function.g2(x2[i]))  )
 }
-y
 
 nknots <- 1
 degree.spline <- 3
@@ -223,7 +222,7 @@ y[1:5]
 #- Gamma -#
 
 set.seed(123)
-n <- 500 #Con n=100 estima bien pero es muy poco
+n <- 3000 #Con n=100 estima bien pero es muy poco
 beta <- c(3,3)
 function.g1 <- function(x1) 2*sin(pi*x1)-4/pi
 function.g2 <- function(x2) exp(x2)-(exp(1)-1)
@@ -238,21 +237,23 @@ y <- rep(0,n)
 for(i in 1:n){
   y[i] <- rnorm(1, 2+ as.numeric(beta%*%Z[i,] + function.g1(x1[i])+function.g2(x2[i])), 1)
 }
-y
 
-nknots <- 1
+
+nknots <- NULL
 degree.spline <- 3
 np.point=NULL
 library(robustbase)
-sal1 <- gplam.rob(y, Z, X, family=gaussian, np.point=NULL, nknots=nknots, knots=NULL, degree.spline=3, maxit=100)
-sal1$coef.lin
-sal1$coef.const
-sal1$g.matrix
-plot(x1,sal1$g.matrix[,1])
+sal3 <- gplam.rob(y, Z, X, family=gaussian, np.point=NULL, nknots=nknots, knots=NULL, degree.spline=3, maxit=100)
+sal3$coef.lin
+sal3$coef.const
+sal3$g.matrix
+sal3$nknots
+plot(x1,sal3$g.matrix[,1])
 points(x1,function.g1(x1), col=2)
-plot(x2,sal1$g.matrix[,2])
+plot(x2,sal3$g.matrix[,2])
 points(x2,function.g2(x2), col=2)
 
 sal1$prediction[1:5]
 sal1$coef.const + as.vector(sal1$coef.lin%*%t(Z)+rowSums(sal1$g.matrix))[1:5]
 y[1:5]
+
