@@ -238,7 +238,7 @@ select.nknots.rob.gplam <- function(y, Z, X, family=family, method="MT", degree.
         method <- "MT"
       }
       sal.r  <- glmrob(y ~ Z.aux+Xspline, family=family, method=method)
-      perdida <- tukey.los
+      perdida <- tukey.loss
       residuos <- sal.r$residuals #alpha.hat + dummies%*%coef.lin + Xspline%*%coef.spl
     }
     if(fami=="binomial"){
